@@ -6,7 +6,9 @@ use std::io::{BufWriter, Read};
 use std::path::Path;
 
 mod gen_grid2d;
+mod kd_tree;
 
+#[allow(dead_code)]
 fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Points2D) {
     let out_file_name = format!("{:04}", i).to_string() + ".png";
 
@@ -22,7 +24,7 @@ fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Point
         .build_cartesian_2d(-1.05..1.05, -1.05..1.05)
         .unwrap();
 
-    chart.configure_mesh().draw().unwrap();
+    //chart.configure_mesh().draw().unwrap();
 
     chart
         .draw_series(PointSeries::of_element(
@@ -45,6 +47,7 @@ fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Point
     root.present().unwrap();
 }
 
+#[allow(dead_code)]
 fn gen_apng(num: usize) {
     let mut files = vec![];
 
@@ -87,7 +90,7 @@ fn main() {
     let seed: [u8; 32] = [1; 32];
     let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
 
-    let num_point: usize = 1000;
+    let num_point: usize = 100;
     let num_boundary: usize = (std::f64::consts::PI * (num_point as f64).powf(0.5)) as usize;
 
     let mut vec = gen_grid2d::Points2D::new();
@@ -104,13 +107,21 @@ fn main() {
         }
     }
 
+    let mut x_vec = vec![0.0; 0];
+
+    for i in 0..vec.points.len() {
+        x_vec.push(vec.points[i].x);
+    }
+
+    //print!("{:?}", x_vec);
+
     for i in 0..num_boundary {
         let t = 2.0 * std::f64::consts::PI * i as f64 / num_boundary as f64;
         boundary.push(t.cos(), t.sin());
     }
 
-    let max_counter = 120;
-
+    let max_counter = 2;
+/*
     for i in 0..max_counter {
         draw_graph(i, &vec, &boundary);
         for _ in 0..10 {
@@ -118,6 +129,6 @@ fn main() {
         }
         println!("{}", i);
     }
-
+*/
     gen_apng(max_counter);
 }

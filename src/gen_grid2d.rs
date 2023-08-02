@@ -1,8 +1,17 @@
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Grid2D {
     pub x: f64,
     pub y: f64,
+}
+
+impl Grid2D {
+    #[allow(dead_code)]
+    pub fn new(x_: f64, y_: f64) -> Self {
+        Grid2D {
+            x: x_,
+            y: y_,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -11,14 +20,49 @@ pub struct Points2D {
 }
 
 impl Points2D {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Points2D { points: vec![] }
     }
 
+    #[allow(dead_code)]
     pub fn push(&mut self, x_r: f64, y_r: f64) {
         self.points.push(Grid2D { x: x_r, y: y_r });
     }
 
+    #[allow(dead_code)]
+    pub fn get_median(&self, axis: i32) -> usize {
+        let mut vec = vec![0.0; 0];
+        let mut median_index = 0;
+        if axis == 0 {
+            for i in 0..self.points.len() {
+                vec.push(self.points[i].x);
+            }
+            vec.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let m_x = vec[vec.len() / 2];
+            for i in 0..self.points.len() {
+                if m_x == self.points[i].x {
+                    median_index = i;
+                    break;
+                }
+            }
+        } else if axis == 1 {
+            for i in 0..self.points.len() {
+                vec.push(self.points[i].y);
+            }
+            vec.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let m_x = vec[vec.len() / 2];
+            for i in 0..self.points.len() {
+                if m_x == self.points[i].x {
+                    median_index = i;
+                    break;
+                }
+            }
+        }
+        median_index
+    }
+
+    #[allow(dead_code)]
     pub fn euler_step(&mut self, boundary: &Points2D) {
         let dt = 1.0e-3;
         for i in 0..self.points.len() {
@@ -41,6 +85,7 @@ impl Points2D {
         }
     }
 
+    #[allow(dead_code)]
     pub fn lennard_jones_potential_deriv(&mut self, index: usize, boundary: &Points2D) -> Grid2D {
         let epsilon: f64 = 1.0;
         let sigma: f64 = 0.9 * (2.0_f64).powf(-1.0 / 6.0) / (self.points.len() as f64).powf(0.5);
