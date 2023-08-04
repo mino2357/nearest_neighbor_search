@@ -5,14 +5,16 @@ use std::fs::File;
 use std::io::{BufWriter, Read};
 use std::path::Path;
 
+use std::time::Instant;
+
 mod gen_grid2d;
 mod kd_tree;
 
 #[allow(dead_code)]
-fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Points2D) {
+fn draw_graph_near_with_center(i: usize, vec: &gen_grid2d::Points2D, center: &gen_grid2d::Grid2D, near: &gen_grid2d::Points2D) {
     let out_file_name = format!("{:04}", i).to_string() + ".png";
 
-    let root = BitMapBackend::new(&out_file_name, (1440, 1440)).into_drawing_area();
+    let root = BitMapBackend::new(&out_file_name, (920, 920)).into_drawing_area();
 
     root.fill(&WHITE).unwrap();
 
@@ -24,7 +26,55 @@ fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Point
         .build_cartesian_2d(-1.05..1.05, -1.05..1.05)
         .unwrap();
 
-    //chart.configure_mesh().draw().unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    chart
+        .draw_series(PointSeries::of_element(
+            (0..vec.points.len()).map(|i| (vec.points[i].x, vec.points[i].y)),
+            1,
+            ShapeStyle::from(&RED).filled(),
+            &|coord, size, style| EmptyElement::at(coord) + Circle::new((0, 0), size, style),
+        ))
+        .unwrap();
+
+    chart
+        .draw_series(PointSeries::of_element(
+            (0..1).map(|_i| (center.x, center.y)),
+            1,
+            ShapeStyle::from(&BLUE).filled(),
+            &|coord, size, style| EmptyElement::at(coord) + Circle::new((0, 0), size, style),
+        ))
+        .unwrap();
+
+    chart
+        .draw_series(PointSeries::of_element(
+            (0..near.points.len()).map(|i| (near.points[i].x, near.points[i].y)),
+            1,
+            ShapeStyle::from(&GREEN).filled(),
+            &|coord, size, style| EmptyElement::at(coord) + Circle::new((0, 0), size, style),
+        ))
+        .unwrap();
+
+    root.present().unwrap();
+}
+
+#[allow(dead_code)]
+fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Points2D) {
+    let out_file_name = format!("{:04}", i).to_string() + ".png";
+
+    let root = BitMapBackend::new(&out_file_name, (440, 440)).into_drawing_area();
+
+    root.fill(&WHITE).unwrap();
+
+    let mut chart = ChartBuilder::on(&root)
+        //.caption("y=x^2", ("sans-serif", 50).into_font())
+        .margin(5)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(-1.05..1.05, -1.05..1.05)
+        .unwrap();
+
+    chart.configure_mesh().draw().unwrap();
 
     chart
         .draw_series(PointSeries::of_element(
@@ -74,7 +124,7 @@ fn gen_apng(num: usize) {
     for image in png_images.iter() {
         let frame = Frame {
             delay_num: Some(1),
-            delay_den: Some(30),
+            delay_den: Some(10),
             ..Default::default()
         };
         encoder.write_frame(image, frame).unwrap();
@@ -90,7 +140,7 @@ fn main() {
     let seed: [u8; 32] = [1; 32];
     let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
 
-    let num_point: usize = 100;
+    let num_point: usize = 10000000;
     let num_boundary: usize = (std::f64::consts::PI * (num_point as f64).powf(0.5)) as usize;
 
     let mut vec = gen_grid2d::Points2D::new();
@@ -99,36 +149,49 @@ fn main() {
     loop {
         let x_r = 2.0 * (rng.gen::<f64>() - 0.5);
         let y_r = 2.0 * (rng.gen::<f64>() - 0.5);
-        if x_r * x_r + y_r * y_r < 1.0 {
+        vec.push(x_r, y_r);
+        /*if x_r * x_r + y_r * y_r < 1.0 {
             vec.push(x_r, y_r);
-        }
+        }*/
         if vec.points.len() == num_point {
             break;
         }
     }
 
-    let mut x_vec = vec![0.0; 0];
+    let max_counter = 50;
 
-    for i in 0..vec.points.len() {
-        x_vec.push(vec.points[i].x);
-    }
+    let start = Instant::now();
+    let tree = kd_tree::KDTree::construct_kd_tree(&vec);
+    let end = start.elapsed();
 
-    //print!("{:?}", x_vec);
+    println!("{}.{:03}秒経過しました。", end.as_secs(), end.subsec_nanos() / 1_000_000);
 
-    for i in 0..num_boundary {
+    println!("tree.size(): {}", tree.size());
+    println!("tree.depth(): {}", tree.depth());
+
+    for i in 0..0 {
         let t = 2.0 * std::f64::consts::PI * i as f64 / num_boundary as f64;
         boundary.push(t.cos(), t.sin());
     }
-
-    let max_counter = 2;
-/*
+    
     for i in 0..max_counter {
-        draw_graph(i, &vec, &boundary);
-        for _ in 0..10 {
-            vec.euler_step(&boundary);
+        let center = gen_grid2d::Grid2D{
+            x: 0.5 * ((2.0 * std::f64::consts::PI / max_counter as f64) * i as f64).cos(),
+            y: 0.5 * ((6.0 * std::f64::consts::PI / max_counter as f64) * i as f64).sin(),
+        };
+        let mut search_id = vec![0 as usize; 0];
+        tree.search_points_id(&center, 0.25, &mut search_id, 0);
+
+        let mut near = gen_grid2d::Points2D::new();
+
+        for i in search_id.iter() {
+            near.push(vec.points[*i].x, vec.points[*i].y);
         }
+
         println!("{}", i);
+
+        draw_graph_near_with_center(i, &vec, &center, &near);
     }
-*/
+
     gen_apng(max_counter);
 }

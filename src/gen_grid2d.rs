@@ -12,6 +12,13 @@ impl Grid2D {
             y: y_,
         }
     }
+    
+    #[allow(dead_code)]
+    pub fn distance_square(&self, point: &Grid2D) -> f64 {
+        let dx2 = (self.x - point.x).powf(2.0);
+        let dy2 = (self.y - point.y).powf(2.0);
+        dx2 + dy2
+    }
 }
 
 #[derive(Debug)]
@@ -28,38 +35,6 @@ impl Points2D {
     #[allow(dead_code)]
     pub fn push(&mut self, x_r: f64, y_r: f64) {
         self.points.push(Grid2D { x: x_r, y: y_r });
-    }
-
-    #[allow(dead_code)]
-    pub fn get_median(&self, axis: i32) -> usize {
-        let mut vec = vec![0.0; 0];
-        let mut median_index = 0;
-        if axis == 0 {
-            for i in 0..self.points.len() {
-                vec.push(self.points[i].x);
-            }
-            vec.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            let m_x = vec[vec.len() / 2];
-            for i in 0..self.points.len() {
-                if m_x == self.points[i].x {
-                    median_index = i;
-                    break;
-                }
-            }
-        } else if axis == 1 {
-            for i in 0..self.points.len() {
-                vec.push(self.points[i].y);
-            }
-            vec.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            let m_x = vec[vec.len() / 2];
-            for i in 0..self.points.len() {
-                if m_x == self.points[i].x {
-                    median_index = i;
-                    break;
-                }
-            }
-        }
-        median_index
     }
 
     #[allow(dead_code)]
