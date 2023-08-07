@@ -2,12 +2,11 @@ use super::gen_grid2d;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct KDTree
-{
-    pub id: usize,
-    pub position: gen_grid2d::Grid2D,
-    pub left: Option<Box<KDTree>>,
-    pub right: Option<Box<KDTree>>,
+pub struct KDTree {
+    id: usize,
+    position: gen_grid2d::Grid2D,
+    left: Option<Box<KDTree>>,
+    right: Option<Box<KDTree>>,
 }
 
 impl KDTree {
@@ -22,25 +21,43 @@ impl KDTree {
     }
 
     #[allow(dead_code)]
-    pub fn is_leaf(&self) -> bool {
-        let left = &self.left;
-        let right = &self.right;
-        match (left, right) {
-            (None, None) => {
-                true
-            }
-            _ => {
-                false
+    fn number_of_leaves(&self) -> usize {
+        match (&self.left, &self.right) {
+            (None, None) => 1,
+            (Some(left_node), None) => left_node.number_of_leaves(),
+            (None, Some(right_node)) => right_node.number_of_leaves(),
+            (Some(left_node), Some(right_node)) => {
+                left_node.number_of_leaves() + right_node.number_of_leaves()
             }
         }
     }
 
     #[allow(dead_code)]
-    pub fn search_points_id(&self, x: &gen_grid2d::Grid2D, radius: f64, near: &mut Vec<usize>, mut depth: i32) {
+    fn is_leaf(&self) -> bool {
+        match (&self.left, &self.right) {
+            (None, None) => true,
+            (Some(_), None) => false,
+            (None, Some(_)) => false,
+            (Some(_), Some(_)) => false,
+        }
+    }
 
+    #[allow(dead_code)]
+    pub fn neighbor_search(&self, x: &gen_grid2d::Grid2D, radius: f64) -> Vec<usize> {
+        let mut near = vec![0_usize];
+        self.search_points_id(x, radius, &mut near, 0);
+        near.clone()
+    }
+
+    #[allow(dead_code)]
+    fn search_points_id(
+        &self,
+        x: &gen_grid2d::Grid2D,
+        radius: f64,
+        near: &mut Vec<usize>,
+        mut depth: i32,
+    ) {
         let axis = depth % 2;
-        //println!("id: {}, depth: {}, position: {:?}, {}", self.id, depth, self.position ,self.position.distance_square(x).sqrt());
-        //println!("{:?}, {:?}", x, self.position);
         let r_self = self.position.distance_square(x).sqrt();
         if r_self < radius {
             near.push(self.id);
@@ -124,9 +141,6 @@ impl KDTree {
 
     #[allow(dead_code)]
     fn insert(&mut self, point: &gen_grid2d::Grid2D, mut depth: i32, id: usize) {
-        //println!("depth: {:?}", depth);
-        //println!("point: {:#?}", point);
-
         let axis = depth % 2;
 
         match axis {
@@ -167,7 +181,7 @@ impl KDTree {
                             self.left = Some(Box::new(node));
                         }
                     }
-                }else {
+                } else {
                     match &mut self.right {
                         Some(right_node) => {
                             depth += 1;
@@ -195,52 +209,39 @@ impl KDTree {
     #[allow(dead_code)]
     pub fn depth(&self) -> i32 {
         match (&self.left, &self.right) {
-            (Some(left), Some(right)) => {
-                1 + (left.depth()).max(right.depth())
-            }
-            (None, None) => {
-                0
-            }
-            (None, Some(right)) => {
-                1 + right.depth()
-            }
-            (Some(left), None) => {
-                1 + left.depth()
-            }
+            (Some(left), Some(right)) => 1 + (left.depth()).max(right.depth()),
+            (None, None) => 0,
+            (None, Some(right)) => 1 + right.depth(),
+            (Some(left), None) => 1 + left.depth(),
         }
     }
 
     #[allow(dead_code)]
     pub fn construct_kd_tree(vec: &gen_grid2d::Points2D) -> KDTree {
-        let mut tree = KDTree::new(&gen_grid2d::Grid2D::new(vec.points[0].x, vec.points[0].y), 0);
-        tree.create_kd_tree(&vec)
+        let mut tree = KDTree::new(
+            &gen_grid2d::Grid2D::new(vec.points[0].x, vec.points[0].y),
+            0,
+        );
+        tree.create_kd_tree(vec)
     }
 
     #[allow(dead_code)]
     pub fn size(&self) -> i32 {
         match (&self.left, &self.right) {
-            (Some(left), Some(right)) => {
-                1 + left.size() + right.size()
-            }
-            (None, None) => {
-                1
-            }
-            (None, Some(right)) => {
-                1 + right.size()
-            }
-            (Some(left), None) => {
-                1 + left.size()
-            }
+            (Some(left), Some(right)) => 1 + left.size() + right.size(),
+            (None, None) => 1,
+            (None, Some(right)) => 1 + right.size(),
+            (Some(left), None) => 1 + left.size(),
         }
     }
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
 
     #[test]
-    fn tree_1() {
+    fn depth_and_size() {
         use rand::prelude::*;
         let seed: [u8; 32] = [1; 32];
         let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
@@ -261,7 +262,7 @@ mod tests{
     }
 
     #[test]
-    fn tree_2() {
+    fn search_1() {
         use rand::prelude::*;
         let seed: [u8; 32] = [1; 32];
         let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
@@ -276,21 +277,41 @@ mod tests{
         }
 
         let tree = KDTree::construct_kd_tree(&mut vec);
-
-        //println!("kd-tree depth: {}", &tree.depth());
-        //println!("kd-tree size: {}", &tree.size());
-        let center = gen_grid2d::Grid2D{ x: 0.0, y: 0.0};
+        let center = gen_grid2d::Grid2D { x: 0.0, y: 0.0 };
         let radius = 0.4;
-        //println!("radius: {}", radius);
-        let mut near = vec![0 as usize; 0];
-        tree.search_points_id(&center, radius, &mut near, 0);
+        let near = tree.neighbor_search(&center, radius);
 
         assert_eq!(near, [1 as usize, 9 as usize].to_vec());
-
     }
 
     #[test]
-    fn tree_3() {
+    fn search_2() {
+        use rand::prelude::*;
+        let seed: [u8; 32] = [1; 32];
+        let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
+        let num_point: usize = 10;
+
+        let mut vec = gen_grid2d::Points2D::new();
+
+        for _ in 0..num_point {
+            let x_r = 2.0 * (rng.gen::<f64>() - 0.5);
+            let y_r = 2.0 * (rng.gen::<f64>() - 0.5);
+            vec.push(x_r, y_r);
+        }
+
+        let tree = KDTree::construct_kd_tree(&mut vec);
+        let center = gen_grid2d::Grid2D { x: 0.4, y: 0.3 };
+        let radius = 0.5;
+        let near = tree.neighbor_search(&center, radius);
+
+        assert_eq!(
+            near,
+            [1 as usize, 2 as usize, 6 as usize, 9 as usize, 5 as usize].to_vec()
+        );
+    }
+
+    #[test]
+    fn count_leaves() {
         use rand::prelude::*;
         let seed: [u8; 32] = [1; 32];
         let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
@@ -306,17 +327,82 @@ mod tests{
 
         let tree = KDTree::construct_kd_tree(&mut vec);
 
-        //println!("kd-tree depth: {}", &tree.depth());
-        //println!("kd-tree size: {}", &tree.size());
-        let center = gen_grid2d::Grid2D{ x: 0.4, y: 0.3};
+        let center = gen_grid2d::Grid2D { x: 0.4, y: 0.3 };
         let radius = 0.5;
-        //println!("radius: {}", radius);
         let mut near = vec![0 as usize; 0];
         tree.search_points_id(&center, radius, &mut near, 0);
 
-        //println!("{:?}", near);
+        assert_eq!(tree.number_of_leaves(), 4);
+    }
 
-        assert_eq!(near, [1 as usize, 2 as usize, 6 as usize, 9 as usize, 5 as usize].to_vec());
+    #[test]
+    fn random_size_test() {
+        use rand::Rng;
 
+        let mut rnd = rand::thread_rng();
+        for _ in 0..10 {
+            let num_point: i32 = rnd.gen_range(0..100000);
+            let mut vec = gen_grid2d::Points2D::new();
+            for _ in 0..num_point {
+                let x_r = rnd.gen::<i32>() as f64;
+                let y_r = rnd.gen::<i32>() as f64;
+                vec.push(x_r, y_r);
+            }
+            let tree = KDTree::construct_kd_tree(&mut vec);
+
+            assert_eq!(tree.size(), num_point);
+        }
+    }
+
+    #[allow(dead_code)]
+    fn benchmark_pre(size: i32) -> gen_grid2d::Points2D {
+        use rand::Rng;
+
+        let mut rnd = rand::thread_rng();
+        let max = size;
+        let num_point: i32 = rnd.gen_range(0..max);
+        let mut vec = gen_grid2d::Points2D::new();
+        for _ in 0..num_point {
+            let x_r = rnd.gen::<i32>() as f64 / max as f64;
+            let y_r = rnd.gen::<i32>() as f64 / max as f64;
+            vec.push(x_r, y_r);
+        }
+        vec.clone()
+    }
+
+    #[allow(dead_code)]
+    fn benchmark(vec: &gen_grid2d::Points2D) {
+        let tree = KDTree::construct_kd_tree(vec);
+        let center = gen_grid2d::Grid2D::new(0.0, 0.0);
+        tree.neighbor_search(&center, 0.01);
+    }
+
+    #[test]
+    #[should_panic]
+    fn speed_test() {
+        use std::time::Instant;
+
+        let mut test_size = 100;
+        loop {
+            let vec = benchmark_pre(test_size);
+
+            let start = Instant::now();
+            benchmark(&vec);
+            let end = start.elapsed();
+
+            println!(
+                "{}, {}.{:03}",
+                test_size,
+                end.as_secs(),
+                end.subsec_nanos() / 1_000_000
+            );
+
+            test_size = 2 * test_size;
+
+            if test_size > 10_000_000 {
+                break;
+            }
+        }
+        assert_eq!(0, 1);
     }
 }

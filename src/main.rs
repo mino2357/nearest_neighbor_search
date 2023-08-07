@@ -5,64 +5,14 @@ use std::fs::File;
 use std::io::{BufWriter, Read};
 use std::path::Path;
 
-use std::time::Instant;
-
 mod gen_grid2d;
 mod kd_tree;
-
-#[allow(dead_code)]
-fn draw_graph_near_with_center(i: usize, vec: &gen_grid2d::Points2D, center: &gen_grid2d::Grid2D, near: &gen_grid2d::Points2D) {
-    let out_file_name = format!("{:04}", i).to_string() + ".png";
-
-    let root = BitMapBackend::new(&out_file_name, (920, 920)).into_drawing_area();
-
-    root.fill(&WHITE).unwrap();
-
-    let mut chart = ChartBuilder::on(&root)
-        //.caption("y=x^2", ("sans-serif", 50).into_font())
-        .margin(5)
-        .x_label_area_size(30)
-        .y_label_area_size(30)
-        .build_cartesian_2d(-1.05..1.05, -1.05..1.05)
-        .unwrap();
-
-    chart.configure_mesh().draw().unwrap();
-
-    chart
-        .draw_series(PointSeries::of_element(
-            (0..vec.points.len()).map(|i| (vec.points[i].x, vec.points[i].y)),
-            1,
-            ShapeStyle::from(&RED).filled(),
-            &|coord, size, style| EmptyElement::at(coord) + Circle::new((0, 0), size, style),
-        ))
-        .unwrap();
-
-    chart
-        .draw_series(PointSeries::of_element(
-            (0..1).map(|_i| (center.x, center.y)),
-            1,
-            ShapeStyle::from(&BLUE).filled(),
-            &|coord, size, style| EmptyElement::at(coord) + Circle::new((0, 0), size, style),
-        ))
-        .unwrap();
-
-    chart
-        .draw_series(PointSeries::of_element(
-            (0..near.points.len()).map(|i| (near.points[i].x, near.points[i].y)),
-            1,
-            ShapeStyle::from(&GREEN).filled(),
-            &|coord, size, style| EmptyElement::at(coord) + Circle::new((0, 0), size, style),
-        ))
-        .unwrap();
-
-    root.present().unwrap();
-}
 
 #[allow(dead_code)]
 fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Points2D) {
     let out_file_name = format!("{:04}", i).to_string() + ".png";
 
-    let root = BitMapBackend::new(&out_file_name, (440, 440)).into_drawing_area();
+    let root = BitMapBackend::new(&out_file_name, (1080, 1080)).into_drawing_area();
 
     root.fill(&WHITE).unwrap();
 
@@ -74,7 +24,7 @@ fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Point
         .build_cartesian_2d(-1.05..1.05, -1.05..1.05)
         .unwrap();
 
-    chart.configure_mesh().draw().unwrap();
+    // chart.configure_mesh().draw().unwrap();
 
     chart
         .draw_series(PointSeries::of_element(
@@ -140,7 +90,7 @@ fn main() {
     let seed: [u8; 32] = [1; 32];
     let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
 
-    let num_point: usize = 10000000;
+    let num_point: usize = 400;
     let num_boundary: usize = (std::f64::consts::PI * (num_point as f64).powf(0.5)) as usize;
 
     let mut vec = gen_grid2d::Points2D::new();
@@ -149,48 +99,34 @@ fn main() {
     loop {
         let x_r = 2.0 * (rng.gen::<f64>() - 0.5);
         let y_r = 2.0 * (rng.gen::<f64>() - 0.5);
-        vec.push(x_r, y_r);
-        /*if x_r * x_r + y_r * y_r < 1.0 {
+        if x_r * x_r + y_r * y_r < 1.0 {
             vec.push(x_r, y_r);
-        }*/
+        }
         if vec.points.len() == num_point {
             break;
         }
     }
 
+    let radius = 4.0 * std::f64::consts::PI / (num_boundary as f64);
+    println!("radius = {}", radius);
+
     let max_counter = 50;
 
-    let start = Instant::now();
-    let tree = kd_tree::KDTree::construct_kd_tree(&vec);
-    let end = start.elapsed();
+    let mut tree = kd_tree::KDTree::construct_kd_tree(&vec);
 
-    println!("{}.{:03}秒経過しました。", end.as_secs(), end.subsec_nanos() / 1_000_000);
-
-    println!("tree.size(): {}", tree.size());
-    println!("tree.depth(): {}", tree.depth());
-
-    for i in 0..0 {
+    for i in 0..num_boundary {
         let t = 2.0 * std::f64::consts::PI * i as f64 / num_boundary as f64;
         boundary.push(t.cos(), t.sin());
     }
-    
+
     for i in 0..max_counter {
-        let center = gen_grid2d::Grid2D{
-            x: 0.5 * ((2.0 * std::f64::consts::PI / max_counter as f64) * i as f64).cos(),
-            y: 0.5 * ((6.0 * std::f64::consts::PI / max_counter as f64) * i as f64).sin(),
-        };
-        let mut search_id = vec![0 as usize; 0];
-        tree.search_points_id(&center, 0.25, &mut search_id, 0);
-
-        let mut near = gen_grid2d::Points2D::new();
-
-        for i in search_id.iter() {
-            near.push(vec.points[*i].x, vec.points[*i].y);
+        draw_graph(i, &vec, &boundary);
+        for _ in 0..100 {
+            vec.euler_step_by_near_points(&boundary, &tree, radius);
+            //vec.euler_step(&boundary);
+            tree = kd_tree::KDTree::construct_kd_tree(&vec);
         }
-
-        println!("{}", i);
-
-        draw_graph_near_with_center(i, &vec, &center, &near);
+        println!("{} / {}", i, max_counter - 1);
     }
 
     gen_apng(max_counter);
