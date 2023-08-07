@@ -44,7 +44,7 @@ impl KDTree {
 
     #[allow(dead_code)]
     pub fn neighbor_search(&self, x: &gen_grid2d::Grid2D, radius: f64) -> Vec<usize> {
-        let mut near = vec![0_usize];
+        let mut near = vec![0; 0];
         self.search_points_id(x, radius, &mut near, 0);
         near.clone()
     }
