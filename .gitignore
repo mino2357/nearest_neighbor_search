@@ -16,4 +16,7 @@ Cargo.lock
 *.png
 *.log
 
+*.svg
+perf.*
+
 !images/*.png
