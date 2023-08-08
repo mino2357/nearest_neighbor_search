@@ -12,7 +12,7 @@ mod kd_tree;
 fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Points2D) {
     let out_file_name = format!("{:04}", i).to_string() + ".png";
 
-    let root = BitMapBackend::new(&out_file_name, (1080, 1080)).into_drawing_area();
+    let root = BitMapBackend::new(&out_file_name, (2000, 2000)).into_drawing_area();
 
     root.fill(&WHITE).unwrap();
 
@@ -29,7 +29,7 @@ fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Point
     chart
         .draw_series(PointSeries::of_element(
             (0..vec.points.len()).map(|i| (vec.points[i].x, vec.points[i].y)),
-            2,
+            1,
             ShapeStyle::from(&RED).filled(),
             &|coord, size, style| EmptyElement::at(coord) + Circle::new((0, 0), size, style),
         ))
@@ -38,7 +38,7 @@ fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Point
     chart
         .draw_series(PointSeries::of_element(
             (0..boundary.points.len()).map(|i| (boundary.points[i].x, boundary.points[i].y)),
-            2,
+            1,
             ShapeStyle::from(&BLUE).filled(),
             &|coord, size, style| EmptyElement::at(coord) + Circle::new((0, 0), size, style),
         ))
@@ -90,8 +90,8 @@ fn main() {
     let seed: [u8; 32] = [1; 32];
     let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
 
-    let num_point: usize = 400;
-    let num_boundary: usize = (std::f64::consts::PI * (num_point as f64).powf(0.5)) as usize;
+    let num_point: usize = 100000;
+    let num_boundary: usize = (std::f64::consts::PI * (num_point as f64).sqrt()) as usize;
 
     let mut vec = gen_grid2d::Points2D::new();
     let mut boundary = gen_grid2d::Points2D::new();
@@ -107,10 +107,10 @@ fn main() {
         }
     }
 
-    let radius = 4.0 * std::f64::consts::PI / (num_boundary as f64);
+    let radius = 6.0 * std::f64::consts::PI / (num_boundary as f64);
     println!("radius = {}", radius);
 
-    let max_counter = 50;
+    let max_counter = 500;
 
     let mut tree = kd_tree::KDTree::construct_kd_tree(&vec);
 
@@ -121,7 +121,7 @@ fn main() {
 
     for i in 0..max_counter {
         draw_graph(i, &vec, &boundary);
-        for _ in 0..100 {
+        for _ in 0..10 {
             vec.euler_step_by_near_points(&boundary, &tree, radius);
             //vec.euler_step(&boundary);
             tree = kd_tree::KDTree::construct_kd_tree(&vec);
