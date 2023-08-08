@@ -1,17 +1,52 @@
-use super::gen_grid2d;
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct Grid2D {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct Points2D {
+    pub points: Vec<Grid2D>,
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct KDTree {
     id: usize,
-    position: gen_grid2d::Grid2D,
+    position: Grid2D,
     left: Option<Box<KDTree>>,
     right: Option<Box<KDTree>>,
 }
 
+impl Grid2D {
+    #[allow(dead_code)]
+    pub fn new(x_: f64, y_: f64) -> Self {
+        Grid2D { x: x_, y: y_ }
+    }
+
+    #[allow(dead_code)]
+    pub fn distance_square(&self, point: &Grid2D) -> f64 {
+        let dx2 = (self.x - point.x) * (self.x - point.x);
+        let dy2 = (self.y - point.y) * (self.y - point.y);
+        dx2 + dy2
+    }
+}
+
+impl Points2D {
+    #[allow(dead_code)]
+    pub fn new() -> Self {
+        Points2D { points: vec![] }
+    }
+
+    #[allow(dead_code)]
+    pub fn push(&mut self, x_r: f64, y_r: f64) {
+        self.points.push(Grid2D { x: x_r, y: y_r });
+    }
+}
+
 impl KDTree {
     #[allow(dead_code)]
-    fn new(vector: &gen_grid2d::Grid2D, id_: usize) -> Self {
+    fn new(vector: &Grid2D, id_: usize) -> Self {
         Self {
             id: id_,
             position: vector.clone(),
@@ -43,20 +78,14 @@ impl KDTree {
     }
 
     #[allow(dead_code)]
-    pub fn neighbor_search(&self, x: &gen_grid2d::Grid2D, radius: f64) -> Vec<usize> {
+    pub fn neighbor_search(&self, x: &Grid2D, radius: f64) -> Vec<usize> {
         let mut near = vec![0; 0];
         self.search_points_id(x, radius, &mut near, 0);
         near.clone()
     }
 
     #[allow(dead_code)]
-    fn search_points_id(
-        &self,
-        x: &gen_grid2d::Grid2D,
-        radius: f64,
-        near: &mut Vec<usize>,
-        mut depth: i32,
-    ) {
+    fn search_points_id(&self, x: &Grid2D, radius: f64, near: &mut Vec<usize>, mut depth: i32) {
         let axis = depth % 2;
         let r_self = self.position.distance_square(x).sqrt();
         if r_self < radius {
@@ -140,7 +169,7 @@ impl KDTree {
     }
 
     #[allow(dead_code)]
-    fn insert(&mut self, point: &gen_grid2d::Grid2D, mut depth: i32, id: usize) {
+    fn insert(&mut self, point: &Grid2D, mut depth: i32, id: usize) {
         let axis = depth % 2;
 
         match axis {
@@ -198,7 +227,7 @@ impl KDTree {
     }
 
     #[allow(dead_code)]
-    fn create_kd_tree(&mut self, vec: &gen_grid2d::Points2D) -> Self {
+    fn create_kd_tree(&mut self, vec: &Points2D) -> Self {
         let depth = 0;
         for i in 1..vec.points.len() {
             self.insert(&vec.points[i], depth, i);
@@ -217,11 +246,8 @@ impl KDTree {
     }
 
     #[allow(dead_code)]
-    pub fn construct_kd_tree(vec: &gen_grid2d::Points2D) -> KDTree {
-        let mut tree = KDTree::new(
-            &gen_grid2d::Grid2D::new(vec.points[0].x, vec.points[0].y),
-            0,
-        );
+    pub fn construct_kd_tree(vec: &Points2D) -> KDTree {
+        let mut tree = KDTree::new(&Grid2D::new(vec.points[0].x, vec.points[0].y), 0);
         tree.create_kd_tree(vec)
     }
 
@@ -247,7 +273,7 @@ mod tests {
         let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
         let num_point: usize = 600;
 
-        let mut vec = gen_grid2d::Points2D::new();
+        let mut vec = Points2D::new();
 
         for _ in 0..num_point {
             let x_r = 2.0 * (rng.gen::<f64>() - 0.5);
@@ -268,7 +294,7 @@ mod tests {
         let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
         let num_point: usize = 10;
 
-        let mut vec = gen_grid2d::Points2D::new();
+        let mut vec = Points2D::new();
 
         for _ in 0..num_point {
             let x_r = 2.0 * (rng.gen::<f64>() - 0.5);
@@ -277,7 +303,7 @@ mod tests {
         }
 
         let tree = KDTree::construct_kd_tree(&mut vec);
-        let center = gen_grid2d::Grid2D { x: 0.0, y: 0.0 };
+        let center = Grid2D { x: 0.0, y: 0.0 };
         let radius = 0.4;
         let near = tree.neighbor_search(&center, radius);
 
@@ -291,7 +317,7 @@ mod tests {
         let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
         let num_point: usize = 10;
 
-        let mut vec = gen_grid2d::Points2D::new();
+        let mut vec = Points2D::new();
 
         for _ in 0..num_point {
             let x_r = 2.0 * (rng.gen::<f64>() - 0.5);
@@ -300,7 +326,7 @@ mod tests {
         }
 
         let tree = KDTree::construct_kd_tree(&mut vec);
-        let center = gen_grid2d::Grid2D { x: 0.4, y: 0.3 };
+        let center = Grid2D { x: 0.4, y: 0.3 };
         let radius = 0.5;
         let near = tree.neighbor_search(&center, radius);
 
@@ -317,7 +343,7 @@ mod tests {
         let mut rng: rand::rngs::StdRng = rand::SeedableRng::from_seed(seed);
         let num_point: usize = 10;
 
-        let mut vec = gen_grid2d::Points2D::new();
+        let mut vec = Points2D::new();
 
         for _ in 0..num_point {
             let x_r = 2.0 * (rng.gen::<f64>() - 0.5);
@@ -327,7 +353,7 @@ mod tests {
 
         let tree = KDTree::construct_kd_tree(&mut vec);
 
-        let center = gen_grid2d::Grid2D { x: 0.4, y: 0.3 };
+        let center = Grid2D { x: 0.4, y: 0.3 };
         let radius = 0.5;
         let mut near = vec![0 as usize; 0];
         tree.search_points_id(&center, radius, &mut near, 0);
@@ -342,7 +368,7 @@ mod tests {
         let mut rnd = rand::thread_rng();
         for _ in 0..10 {
             let num_point: i32 = rnd.gen_range(0..100000);
-            let mut vec = gen_grid2d::Points2D::new();
+            let mut vec = Points2D::new();
             for _ in 0..num_point {
                 let x_r = rnd.gen::<i32>() as f64;
                 let y_r = rnd.gen::<i32>() as f64;
@@ -355,13 +381,13 @@ mod tests {
     }
 
     #[allow(dead_code)]
-    fn benchmark_pre(size: i32) -> gen_grid2d::Points2D {
+    fn benchmark_pre(size: i32) -> Points2D {
         use rand::Rng;
 
         let mut rnd = rand::thread_rng();
         let max = size;
         let num_point: i32 = rnd.gen_range(0..max);
-        let mut vec = gen_grid2d::Points2D::new();
+        let mut vec = Points2D::new();
         for _ in 0..num_point {
             let x_r = rnd.gen::<i32>() as f64 / max as f64;
             let y_r = rnd.gen::<i32>() as f64 / max as f64;
@@ -371,9 +397,9 @@ mod tests {
     }
 
     #[allow(dead_code)]
-    fn benchmark(vec: &gen_grid2d::Points2D) {
+    fn benchmark(vec: &Points2D) {
         let tree = KDTree::construct_kd_tree(vec);
-        let center = gen_grid2d::Grid2D::new(0.0, 0.0);
+        let center = Grid2D::new(0.0, 0.0);
         tree.neighbor_search(&center, 0.01);
     }
 

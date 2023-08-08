@@ -5,11 +5,11 @@ use std::fs::File;
 use std::io::{BufWriter, Read};
 use std::path::Path;
 
-mod gen_grid2d;
 mod kd_tree;
+mod lennard_jones_potential;
 
 #[allow(dead_code)]
-fn draw_graph(i: usize, vec: &gen_grid2d::Points2D, boundary: &gen_grid2d::Points2D) {
+fn draw_graph(i: usize, vec: &kd_tree::Points2D, boundary: &kd_tree::Points2D) {
     let out_file_name = format!("{:04}", i).to_string() + ".png";
 
     let root = BitMapBackend::new(&out_file_name, (2000, 2000)).into_drawing_area();
@@ -93,8 +93,8 @@ fn main() {
     let num_point: usize = 100000;
     let num_boundary: usize = (std::f64::consts::PI * (num_point as f64).sqrt()) as usize;
 
-    let mut vec = gen_grid2d::Points2D::new();
-    let mut boundary = gen_grid2d::Points2D::new();
+    let mut vec = kd_tree::Points2D::new();
+    let mut boundary = kd_tree::Points2D::new();
 
     loop {
         let x_r = 2.0 * (rng.gen::<f64>() - 0.5);
@@ -110,7 +110,7 @@ fn main() {
     let radius = 6.0 * std::f64::consts::PI / (num_boundary as f64);
     println!("radius = {}", radius);
 
-    let max_counter = 500;
+    let max_counter = 5_000;
 
     let mut tree = kd_tree::KDTree::construct_kd_tree(&vec);
 
