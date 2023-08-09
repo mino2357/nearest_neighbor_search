@@ -8,6 +8,12 @@ $$
 U(r) = 4 \epsilon \left[ \left\lbrace \frac{\sigma}{r} \right\rbrace^{12} - \left\lbrace \frac{\sigma}{r} \right\rbrace^{6} \right]
 $$
 
+ポテンシャルが小さくなるように点が移動するような方程式として単純な以下のモデルを用いた。計算例は以下の方程式を用いている。
+
+$$
+\frac{dr}{dt} = - \frac{dU}{dr}
+$$
+
 ## 計算例
 
 ![sim](images/sim.png)
